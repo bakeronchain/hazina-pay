@@ -1,10 +1,10 @@
 # HazinaVault
 
-**Forced savings for gig workers across Africa — powered by AI, Stellar, and LI.FI.**
+**Forced savings for gig workers across Africa — powered by AI and Stellar.**
 
 > "Hazina" means *treasure* in Swahili.
 
-HazinaVault helps informal earners build savings discipline by locking stablecoins for 1–12 months, earning yield, and accessing funds in a genuine emergency — reviewed instantly by Claude AI.
+HazinaVault helps informal earners build savings discipline by locking USDC on Stellar/Soroban for 1–12 months, earning yield, and accessing funds in a genuine emergency — reviewed instantly by Claude AI.
 
 ---
 
@@ -12,13 +12,10 @@ HazinaVault helps informal earners build savings discipline by locking stablecoi
 
 | Feature | Description |
 |---|---|
-| **Forced Savings** | Lock USDC/USDA for 1–12 months. Remove the temptation to spend. |
-| **Earn Yield** | 6% APY default, block/ledger-based compounding. |
+| **Forced Savings** | Lock USDC for 1–12 months. Remove the temptation to spend. |
+| **Earn Yield** | 6% APY default, ledger-based compounding on Soroban. |
 | **AI Emergency Review** | Claude vision evaluates photo evidence in seconds. Approves with ≥ 75% confidence. |
-| **Group Vaults** | Up to 20 members save together with independent balances. |
-| **LI.FI Yield Discovery** | Compare APY across 20+ DeFi protocols on 21 chains. Deposit in one click. |
-| **AI Yield Advisor** | Natural language: *"put my USDC into the safest vault above 5% on Arbitrum"* — Claude finds and routes the deposit. |
-| **Dual Chain** | Runs on **Stacks** and **Stellar** (Soroban). |
+| **Ed25519 Signatures** | AI relayer signs approvals; Soroban contract verifies on-chain. |
 
 ---
 
@@ -29,72 +26,38 @@ HazinaVault helps informal earners build savings discipline by locking stablecoi
 │                        Frontend                             │
 │              Next.js 15 · TypeScript · Tailwind             │
 │                                                             │
-│  /              Landing page                                │
-│  /dashboard     Stacks vault dashboard                      │
-│  /stellar-vault Stellar vault (Freighter wallet)            │
-│  /earn          LI.FI yield discovery + AI advisor          │
-│  /group         Group vaults                                │
+│  /              Landing page (Freighter connect)            │
+│  /stellar-vault Stellar vault dashboard                     │
 │  /emergency     AI-reviewed emergency withdrawal            │
 └────────────────────┬────────────────────────────────────────┘
-                     │ API routes (Next.js) or
-                     │ standalone backend (Express)
+                     │ Next.js API routes
 ┌────────────────────▼────────────────────────────────────────┐
 │                        Backend                              │
 │                                                             │
-│  POST /api/review-emergency  Claude vision + Stacks sign    │
-│  GET  /api/earn-vaults       LI.FI Earn Data API proxy      │
-│  POST /api/earn-agent        Claude AI yield advisor        │
-│  GET  /api/earn-quote        LI.FI Composer API proxy       │
-└──────┬───────────────────────────────┬───────────────────────┘
-       │                               │
-┌──────▼──────┐                ┌───────▼────────┐
-│   Stacks    │                │   LI.FI APIs   │
-│  Testnet /  │                │                │
-│  Mainnet    │                │ earn.li.fi     │
-│             │                │ li.quest       │
-│ HazinaVault │                └────────────────┘
-│ HazinaGroup │
-│ Vault.clar  │
-└──────┬──────┘
-       │
-┌──────▼──────┐
-│   Stellar   │
-│  Testnet /  │
-│  Mainnet    │
-│             │
-│ HazinaVault │
-│ Stellar.rs  │
-│ (Soroban)   │
-└─────────────┘
+│  POST /api/review-emergency  Claude vision + Ed25519 sign   │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │   Stellar Soroban   │
+                    │   Testnet/Mainnet   │
+                    │                    │
+                    │  HazinaVault.rs    │
+                    │  (Rust contract)   │
+                    └────────────────────┘
 ```
 
 ---
 
 ## Tech Stack
 
-### Frontend
-- **Next.js 15** (App Router, React 19)
-- **TypeScript**
-- **Tailwind CSS** with custom gold palette
-- **TanStack React Query** — vault data caching & polling
-
-### Blockchains
-| Chain | Language | Wallet | Token |
-|---|---|---|---|
-| **Stacks** | Clarity 2 | Hiro / Leather | USDA (SIP-010) |
-| **Stellar** (Soroban) | Rust | Freighter | USDC |
-
-### AI
-- **Anthropic Claude** (`claude-sonnet-4-6`) — vision-based emergency review + yield advisor
-- Ed25519 / secp256k1 on-chain signature verification
-
-### DeFi Integration
-- **LI.FI Earn Data API** (`earn.li.fi`) — vault discovery, APY, TVL across 21 chains
-- **LI.FI Composer API** (`li.quest`) — one-click cross-chain deposits into any vault
-
-### Backend
-- **Express 4** — standalone API server mirroring all Next.js API routes
-- **Multer** — multipart image uploads for emergency review
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 15, React 19, TypeScript, Tailwind CSS |
+| **Blockchain** | Stellar / Soroban (Rust smart contract) |
+| **Wallet** | Freighter (Stellar) |
+| **Token** | USDC on Stellar |
+| **AI** | Anthropic Claude (`claude-sonnet-4-6`) — vision review |
+| **Signing** | Ed25519 (Node.js crypto, verified on-chain by Soroban) |
 
 ---
 
@@ -102,61 +65,25 @@ HazinaVault helps informal earners build savings discipline by locking stablecoi
 
 ```
 hazina-pay/
-├── app/                          # Next.js App Router
-│   ├── page.tsx                  # Landing page
-│   ├── dashboard/page.tsx        # Stacks vault dashboard
-│   ├── stellar-vault/page.tsx    # Stellar vault (Freighter)
-│   ├── earn/page.tsx             # LI.FI yield discovery + AI chat
-│   ├── create-vault/page.tsx     # Deposit & lock
-│   ├── withdraw/page.tsx         # Normal withdrawal
-│   ├── emergency/page.tsx        # AI-reviewed emergency withdrawal
-│   ├── group/page.tsx            # Group vault UI
-│   ├── verify/page.tsx           # Identity verification
+├── app/
+│   ├── page.tsx                  # Landing page (Freighter connect)
+│   ├── stellar-vault/page.tsx    # Vault dashboard — deposit, withdraw, emergency
 │   └── api/
-│       ├── review-emergency/     # Claude vision review + secp256k1 signing
-│       ├── earn-vaults/          # LI.FI Earn Data API proxy
-│       ├── earn-agent/           # Claude AI yield advisor
-│       └── earn-quote/           # LI.FI Composer proxy
-│
-├── backend/                      # Standalone Express API server
-│   ├── src/
-│   │   ├── index.ts              # Express entry point (port 4000)
-│   │   ├── routes/
-│   │   │   ├── reviewEmergency.ts
-│   │   │   ├── earnVaults.ts
-│   │   │   ├── earnAgent.ts
-│   │   │   └── earnQuote.ts
-│   │   └── lib/
-│   │       └── lifi.ts
-│   ├── package.json
-│   └── .env.example
+│       └── review-emergency/     # Claude vision review + Ed25519 signing
 │
 ├── contracts/
-│   ├── HazinaVault.clar          # Stacks individual vault (Clarity 2)
-│   ├── HazinaGroupVault.clar     # Stacks group vault (Clarity 2)
-│   ├── mock-usda.clar            # Testnet USDA faucet token
 │   └── stellar/
-│       ├── Cargo.toml            # Rust project config
-│       └── src/lib.rs            # Stellar Soroban vault contract (Rust)
+│       ├── Cargo.toml
+│       └── src/lib.rs            # Soroban vault contract (Rust)
 │
 ├── lib/
-│   ├── hooks.ts                  # React Query hooks for Stacks data
-│   ├── stacks.ts                 # Stacks contract call builders
-│   ├── wallet.ts                 # Stacks wallet session
-│   ├── lifi.ts                   # LI.FI Earn Data API client
-│   ├── composer.ts               # LI.FI Composer API client
-│   └── stellar.ts                # Stellar SDK + Freighter integration
+│   ├── stellar.ts                # Stellar SDK + Freighter integration
+│   └── composer.ts               # LI.FI Composer API client
 │
-├── components/
-│   ├── GoldButton.tsx
-│   ├── VaultCard.tsx
-│   ├── ProgressBar.tsx
-│   ├── StatusBadge.tsx
-│   └── Providers.tsx
+├── backend/                      # Standalone Express server (mirrors API routes)
+│   └── src/routes/reviewEmergency.ts
 │
 ├── .env.local.example
-├── Clarinet.toml
-├── package.json
 └── README.md
 ```
 
@@ -167,16 +94,14 @@ hazina-pay/
 ### Prerequisites
 
 - Node.js 18+
-- [Clarinet](https://docs.hiro.so/clarinet/getting-started) — Stacks contract dev
-- [Rust + cargo](https://rustup.rs/) — Stellar Soroban contract
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli) — Soroban deploy
-- [Hiro Wallet](https://wallet.hiro.so/) or [Leather](https://leather.io/) — Stacks
-- [Freighter](https://www.freighter.app/) — Stellar
+- [Rust + cargo](https://rustup.rs/) — Soroban contract
+- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli) — deploy
+- [Freighter](https://www.freighter.app/) — Stellar wallet
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/hazina-pay.git
+git clone https://github.com/bakeronchain/hazina-pay.git
 cd hazina-pay
 npm install
 ```
@@ -190,12 +115,6 @@ cp .env.local.example .env.local
 Edit `.env.local`:
 
 ```env
-# Stacks
-NEXT_PUBLIC_VAULT_CONTRACT=SP000000000000000000002Q6VF78.HazinaVault
-NEXT_PUBLIC_GROUP_VAULT_CONTRACT=SP000000000000000000002Q6VF78.HazinaGroupVault
-NEXT_PUBLIC_TOKEN_CONTRACT=SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.usda-token
-NEXT_PUBLIC_STACKS_NETWORK=testnet
-
 # Stellar
 NEXT_PUBLIC_STELLAR_VAULT_CONTRACT=C...your-soroban-contract-id
 NEXT_PUBLIC_STELLAR_NETWORK=testnet
@@ -203,56 +122,20 @@ NEXT_PUBLIC_STELLAR_USDC_CONTRACT=CBIELTK6YBZJU5UP2WWQEQPMKJGKQKZM2AMLMRKNRKMFNZ
 
 # AI
 ANTHROPIC_API_KEY=sk-ant-...
-AI_RELAYER_PRIVATE_KEY=your-64-char-hex-stacks-private-key
-
-# LI.FI — get key at https://portal.li.fi
-LIFI_API_KEY=your-lifi-api-key
+# 32-byte Ed25519 seed hex — must match the relayer address in the contract
+AI_RELAYER_PRIVATE_KEY=your-64-char-hex-ed25519-seed
 ```
 
-### 3. Run the frontend
+### 3. Run
 
 ```bash
 npm run dev
 # http://localhost:3000
 ```
 
-### 4. Run the backend (standalone, optional)
-
-```bash
-cd backend
-npm install
-cp .env.example .env   # fill in your keys
-npm run dev            # http://localhost:4000
-```
-
 ---
 
-## Smart Contracts
-
-### Stacks (Clarity 2)
-
-| Contract | File | Network |
-|---|---|---|
-| `HazinaVault` | `contracts/HazinaVault.clar` | Stacks testnet/mainnet |
-| `HazinaGroupVault` | `contracts/HazinaGroupVault.clar` | Stacks testnet/mainnet |
-| `mock-usda` | `contracts/mock-usda.clar` | Testnet only |
-
-```bash
-clarinet check           # validate
-clarinet test            # run tests
-clarinet deployments apply --testnet
-```
-
-Key functions:
-```clarity
-(deposit token amount lock-months)
-(withdraw token)
-(emergency-withdraw token amount reason signature)
-(get-vault user)
-(get-pending-yield user)
-```
-
-### Stellar (Soroban / Rust)
+## Smart Contract (Soroban / Rust)
 
 File: `contracts/stellar/src/lib.rs`
 
@@ -272,146 +155,65 @@ stellar contract invoke \
 ```
 
 Key functions:
+
 ```rust
 initialize(admin, relayer, token)
-deposit(from, amount, lock_months)
-withdraw(to)
-emergency_withdraw(to, amount, reason, signature)
+deposit(from, amount, lock_months)   // lock 1–12 months
+withdraw(to)                          // after lock expires
+emergency_withdraw(to, amount, reason, signature)  // AI-approved only
 get_vault(user) → Option<VaultData>
 get_pending_yield(user) → i128
-get_apy_bps() → i128
+get_apy_bps() → i128                 // default 600 = 6%
 ```
 
 ---
 
-## API Reference
-
-### `POST /api/review-emergency`
-
-| Field | Type | Notes |
-|---|---|---|
-| `image` | File (multipart) | Photo evidence |
-| `description` | string | Max 1000 chars |
-| `userAddress` | string | Wallet address |
-| `amount` | string | Micro-units |
-
-```json
-// Approved
-{ "approved": true, "signature": "0x...", "message": "Medical bill verified" }
-
-// Rejected
-{ "approved": false, "message": "Evidence does not match description" }
-```
-
-### `GET /api/earn-vaults`
-
-| Param | Description |
-|---|---|
-| `tokens` | `USDC,USDT` |
-| `chains` | `42161,8453` |
-| `minApy` | `5` (percent) |
-| `limit` | Default 50 |
-| `search` | Text search |
-
-> APY is decimal (`0.087` = 8.7%). TVL `usd` is a string.
-
-### `POST /api/earn-agent`
-
-```json
-// Request
-{ "message": "safest USDC vault above 5% on Arbitrum", "walletAddress": "0x..." }
-
-// Response
-{ "message": "I recommend...", "recommendedVault": { "address": "0x...", "apy": "8.70%", ... }, "vaults": [...] }
-```
-
-### `GET /api/earn-quote`
-
-| Param | Notes |
-|---|---|
-| `fromChain` | Source chain ID |
-| `toChain` | Vault's chain ID |
-| `fromToken` | e.g. `USDC` |
-| `toToken` | **Vault address** — NOT the underlying token |
-| `fromAddress` | Sender EVM address |
-| `toAddress` | Recipient (usually same) |
-| `fromAmount` | Smallest unit e.g. `1000000` |
-
----
-
-## LI.FI Integration
-
-```
-Earn Data API  https://earn.li.fi   — no auth required
-Composer API   https://li.quest     — requires LIFI_API_KEY from portal.li.fi
-```
-
-Integration flow:
-```
-1. GET /api/earn-vaults  →  earn.li.fi/v1/earn/vaults   (discover)
-2. User selects vault
-3. GET /api/earn-quote   →  li.quest/v1/quote            (toToken = vault address)
-4. User signs transactionRequest in wallet
-5. Transaction broadcast
-```
-
-> **Critical:** `toToken` in the Composer quote must be the **vault contract address**, not the underlying asset address.
-
----
-
-## Emergency Withdrawal Flow
+## AI Emergency Review Flow
 
 ```
 1. User submits photo + description + amount
 2. Claude vision scores confidence 0–100
-3. If confidence ≥ 75% → AI relayer signs approval
-4. Signature submitted on-chain → funds released immediately
-5. Yield forfeited; max 3 lifetime emergencies per user
+3. If confidence ≥ 75% → AI relayer signs with Ed25519
+4. Signature submitted on-chain → Soroban verifies with ed25519_verify
+5. Funds released immediately; yield forfeited
+6. Max 3 lifetime emergencies per user
 ```
+
+**Message hash** (mirrors `build_msg_hash` in the Soroban contract):
+```
+sha256(amount_le16 ‖ reason_xdr)
+```
+where `reason_xdr` = 4-byte BE length + UTF-8 bytes.
 
 ---
 
 ## Yield Mechanics
 
-| Chain | Time Unit | Blocks/year | Formula |
-|---|---|---|---|
-| Stacks | ~10 min blocks | 52,560 | `balance × apy_bps × elapsed / (10_000 × 52_560)` |
-| Stellar | Ledger sequences (~5 sec) | 6,220,800 | `balance × apy_bps × elapsed / (10_000 × 6_220_800)` |
+| Time Unit | Ledgers/year | Formula |
+|---|---|---|
+| ~5 sec / ledger | 6,220,800 | `balance × apy_bps × elapsed / (10_000 × 6_220_800)` |
 
 Default APY: **600 bps = 6%**. Max: 2000 bps = 20%.
 
 ---
 
-## Hackathon
-
-**DeFi Mullet Hackathon #1** · LI.FI · April 8–14, 2026
-
-**Track: AI × Earn**
-
-Both LI.FI APIs integrated:
-- Earn Data API — vault discovery at `/earn`
-- Composer API — one-click deposit via `/api/earn-quote`
-
-**Submission:** April 14 · tweet `@lifiprotocol @kenny_io` · form at `forms.gle/1PCvD9BymH1EyRmV8`
-
----
-
 ## Deployment
 
-### Vercel (frontend)
+### Vercel (frontend + API)
+
 ```bash
 vercel deploy
 ```
-Add all env vars in the Vercel dashboard.
 
-### Railway / Render (backend)
-```bash
-cd backend && npm run build && npm start
-```
-Set `PORT`, `ANTHROPIC_API_KEY`, `AI_RELAYER_PRIVATE_KEY`, `LIFI_API_KEY`, `ALLOWED_ORIGIN`.
+Set in Vercel dashboard:
+- `NEXT_PUBLIC_STELLAR_VAULT_CONTRACT`
+- `NEXT_PUBLIC_STELLAR_NETWORK`
+- `NEXT_PUBLIC_STELLAR_USDC_CONTRACT`
+- `ANTHROPIC_API_KEY`
+- `AI_RELAYER_PRIVATE_KEY`
 
 ---
 
 ## License
 
-MIT · Built for DeFi Mullet Hackathon #1 · April 2026
+MIT · April 2026

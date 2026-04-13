@@ -3,9 +3,9 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "HazinaVault — Forced Savings on Stacks",
+  title: "HazinaVault — Forced Savings on Stellar",
   description:
-    "Lock stablecoins for 1–12 months, earn yield, and unlock emergency funds with AI-reviewed withdrawals.",
+    "Lock USDC on Stellar for 1–12 months, earn yield, and unlock emergency funds with AI-reviewed withdrawals.",
 };
 
 export default function RootLayout({

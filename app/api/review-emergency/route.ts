@@ -4,68 +4,60 @@
  * Accepts a multipart form submission containing:
  *   - image       File   — photographic evidence of the emergency
  *   - description string — user's written description (≤ 1 000 chars)
- *   - userAddress string — caller's Stacks principal
- *   - amount      string — requested amount in micro-units
- *   - vaultId?    string — hex vault-id (group vaults only)
+ *   - userAddress string — caller's Stellar G-address
+ *   - amount      string — requested amount in stroops (7 decimals)
  *
  * Returns:
  *   { approved: true,  signature: "0x<hex>", message: "..." }
  *   { approved: false, message: "..." }
  *
  * Signing:
- *   Uses the Stacks private key in AI_RELAYER_PRIVATE_KEY to produce a
- *   secp256k1 signature over:
- *     sha256(sha256(userAddress) ‖ sha256(amount) ‖ sha256(description))
- *
- *   This mirrors the on-chain emergency-msg-hash construction so the
- *   Clarity contract can verify it with secp256k1-recover?.
+ *   Ed25519 signature by AI_RELAYER_PRIVATE_KEY over the same message hash
+ *   the Soroban contract constructs in build_msg_hash:
+ *     sha256(amount_le16 ‖ reason_xdr)
+ *   where reason_xdr = 4-byte BE length + UTF-8 bytes (Soroban String XDR).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { createHash } from "crypto";
-import {
-  createStacksPrivateKey,
-  signWithKey,
-  serializeCV,
-  principalCV,
-  uintCV,
-  stringAsciiCV,
-} from "@stacks/transactions";
+import { createHash, createPrivateKey, sign } from "crypto";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ─── Message hash ─────────────────────────────────────────────────────────────
+// ─── Message hash (mirrors Soroban build_msg_hash) ────────────────────────────
 
-/**
- * Recreate the on-chain emergency-msg-hash:
- *   sha256(sha256(user) ‖ sha256(amount) ‖ sha256(reason))
- * where each component is hashed via Clarity's to-consensus-buff serialisation.
- */
-function buildMsgHash(
-  userAddress: string,
-  amount: bigint,
-  reason: string
-): Buffer {
-  const hashOf = (buf: Buffer) => createHash("sha256").update(buf).digest();
+function buildMsgHash(amount: bigint, reason: string): Buffer {
+  // amount as 16-byte little-endian i128
+  const amountBuf = Buffer.alloc(16);
+  let amt = amount < 0n ? amount + (1n << 128n) : amount;
+  for (let i = 0; i < 16; i++) {
+    amountBuf[i] = Number(amt & 0xffn);
+    amt >>= 8n;
+  }
 
-  // Clarity consensus-buff for principal: 0x05 type-prefix + 1-byte version + 20-byte hash160
-  // Using @stacks/transactions serializeCV gives us the exact bytes Clarity produces
-  const userBytes = Buffer.from(serializeCV(principalCV(userAddress)));
-  const amountBytes = Buffer.from(serializeCV(uintCV(amount)));
-  const reasonBytes = Buffer.from(serializeCV(stringAsciiCV(reason.slice(0, 256))));
+  // reason as Soroban String XDR: 4-byte BE length + UTF-8
+  const reasonUtf8 = Buffer.from(reason, "utf8");
+  const reasonXdr = Buffer.alloc(4 + reasonUtf8.length);
+  reasonXdr.writeUInt32BE(reasonUtf8.length, 0);
+  reasonUtf8.copy(reasonXdr, 4);
 
-  const combined = Buffer.concat([
-    hashOf(userBytes),
-    hashOf(amountBytes),
-    hashOf(reasonBytes),
-  ]);
-  return createHash("sha256").update(combined).digest();
+  return createHash("sha256").update(Buffer.concat([amountBuf, reasonXdr])).digest();
 }
 
-// ─── AI review ───────────────────────────────────────────────────────────────
+// ─── Ed25519 signing ──────────────────────────────────────────────────────────
+
+function signEd25519(msgHash: Buffer, seedHex: string): Buffer {
+  const seed = Buffer.from(seedHex, "hex");
+  // Wrap 32-byte seed in PKCS#8 DER envelope for Node.js crypto
+  const der = Buffer.concat([
+    Buffer.from("302e020100300506032b657004220420", "hex"),
+    seed,
+  ]);
+  const privateKey = createPrivateKey({ key: der, format: "der", type: "pkcs8" });
+  return sign(null, msgHash, privateKey);
+}
+
+// ─── AI system prompt ─────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a compassionate financial review assistant for HazinaVault,
 a forced-savings platform for gig workers and informal earners in Africa.
@@ -116,10 +108,11 @@ export async function POST(request: NextRequest) {
 
     const amount = BigInt(amountStr);
 
-    // Convert image to base64 for the vision API
     const imageBytes = await image.arrayBuffer();
     const base64Image = Buffer.from(imageBytes).toString("base64");
-    const mediaType = (image.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp") || "image/jpeg";
+    const mediaType =
+      (image.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp") ||
+      "image/jpeg";
 
     // ── Claude vision review ──────────────────────────────────────────────────
     const completion = await anthropic.messages.create({
@@ -130,22 +123,15 @@ export async function POST(request: NextRequest) {
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64Image },
-            },
-            {
-              type: "text",
-              text: `Emergency description: "${description}"\n\nPlease evaluate this emergency withdrawal request.`,
-            },
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } },
+            { type: "text", text: `Emergency description: "${description}"\n\nPlease evaluate this emergency withdrawal request.` },
           ],
         },
       ],
     });
 
-    const rawText = completion.content[0].type === "text"
-      ? completion.content[0].text.trim()
-      : "";
+    const rawText =
+      completion.content[0].type === "text" ? completion.content[0].text.trim() : "";
 
     let review: { approved: boolean; confidence: number; reason: string };
     try {
@@ -158,41 +144,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Require ≥ 75% confidence to approve
     const approved = review.approved && review.confidence >= 75;
 
     if (!approved) {
-      return NextResponse.json({
-        approved: false,
-        message: review.reason,
-      });
+      return NextResponse.json({ approved: false, message: review.reason });
     }
 
-    // ── Sign the approval ─────────────────────────────────────────────────────
-    const privateKeyHex = process.env.AI_RELAYER_PRIVATE_KEY;
-    if (!privateKeyHex) {
+    // ── Sign with Ed25519 (matches Soroban ed25519_verify) ────────────────────
+    const seedHex = process.env.AI_RELAYER_PRIVATE_KEY;
+    if (!seedHex) {
       console.error("AI_RELAYER_PRIVATE_KEY not set");
-      return NextResponse.json(
-        { error: "Server signing key not configured" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Server signing key not configured" }, { status: 500 });
     }
 
-    const msgHash = buildMsgHash(userAddress, amount, description);
-    const privateKey = createStacksPrivateKey(privateKeyHex);
-    const { data: signatureHex } = signWithKey(privateKey, msgHash.toString("hex"));
+    const msgHash = buildMsgHash(amount, description);
+    const signature = signEd25519(msgHash, seedHex);
 
-    // signWithKey returns a 65-byte signature (recovery-id ‖ r ‖ s) as hex
     return NextResponse.json({
       approved: true,
-      signature: `0x${signatureHex}`,
+      signature: `0x${signature.toString("hex")}`,
       message: review.reason,
     });
   } catch (error) {
     console.error("review-emergency error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
