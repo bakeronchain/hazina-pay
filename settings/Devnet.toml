@@ -1,0 +1,35 @@
+[network]
+name = "devnet"
+
+[accounts.deployer]
+mnemonic = "twice kind fence tip hidden tilt action fragile skin nothing glory cousin green tomorrow spring wrist shed math olympic multiply hip blue scout claw"
+balance = 100_000_000_000_000
+
+[accounts.wallet_1]
+mnemonic = "sell invite acquire kitten bamboo drastic jelly vivid peace spawn twice guilt pave pen trash pretty park cube fragile unaware remaining dolphin union"
+balance = 100_000_000_000_000
+
+[accounts.wallet_2]
+mnemonic = "hold excess usual excess ring elephant install account glad dry fragile donkey gaze humble truck breeze nation gasp vacuum limb head keep delay hospital"
+balance = 100_000_000_000_000
+
+[accounts.wallet_3]
+mnemonic = "cycle puppy glare enroll cost improve round trend wrist mushroom scorpion tower claim oppose rather ex common sea occupancy more ramp held pivot"
+balance = 100_000_000_000_000
+
+[devnet]
+bitcoin_node_p2p_port = 18444
+bitcoin_node_rpc_port = 18443
+stacks_node_p2p_port = 20444
+stacks_node_rpc_port = 20443
+orchestrator_ingestion_port = 20445
+bitcoin_node_username = "devnet"
+bitcoin_node_password = "devnet"
+miner_mnemonic = "twice kind fence tip hidden tilt action fragile skin nothing glory cousin green tomorrow spring wrist shed math olympic multiply hip blue scout claw"
+miner_derivation_path = "m/44'/5757'/0'/0/0"
+working_dir = "/tmp/hazina-devnet"
+stacks_api_port = 3999
+stacks_api_events_port = 3700
+stacks_api_url = "http://localhost:3999"
+bitcoin_explorer_url = "http://localhost:8001"
+stacks_explorer_url = "http://localhost:8000"
