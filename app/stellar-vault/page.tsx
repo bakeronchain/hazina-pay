@@ -112,7 +112,7 @@ export default function StellarVaultPage() {
   const [freighterInstalled, setFreighterInstalled] = useState<boolean | null>(null);
   const [vault, setVault] = useState<StellarVaultData | null>(null);
   const [pendingYield, setPendingYield] = useState<bigint>(BigInt(0));
-  const [currentLedger, setCurrentLedger] = useState(0);
+  const [currentLedger] = useState(0);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("deposit");
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -314,7 +314,7 @@ export default function StellarVaultPage() {
           </GoldButton>
           <div className="mt-4">
             <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
-              ← Back (Stacks version)
+              ← Back
             </Link>
           </div>
         </div>

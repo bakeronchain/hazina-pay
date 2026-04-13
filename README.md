@@ -1,6 +1,6 @@
 # HazinaVault
 
-**Forced savings for gig workers across Africa — powered by AI, Bitcoin, Stellar, and LI.FI.**
+**Forced savings for gig workers across Africa — powered by AI, Stellar, and LI.FI.**
 
 > "Hazina" means *treasure* in Swahili.
 
@@ -18,7 +18,7 @@ HazinaVault helps informal earners build savings discipline by locking stablecoi
 | **Group Vaults** | Up to 20 members save together with independent balances. |
 | **LI.FI Yield Discovery** | Compare APY across 20+ DeFi protocols on 21 chains. Deposit in one click. |
 | **AI Yield Advisor** | Natural language: *"put my USDC into the safest vault above 5% on Arbitrum"* — Claude finds and routes the deposit. |
-| **Dual Chain** | Runs on **Stacks** (Bitcoin L2) and **Stellar** (Soroban). |
+| **Dual Chain** | Runs on **Stacks** and **Stellar** (Soroban). |
 
 ---
 
@@ -81,7 +81,7 @@ HazinaVault helps informal earners build savings discipline by locking stablecoi
 ### Blockchains
 | Chain | Language | Wallet | Token |
 |---|---|---|---|
-| **Stacks** (Bitcoin L2) | Clarity 2 | Hiro / Leather | USDA (SIP-010) |
+| **Stacks** | Clarity 2 | Hiro / Leather | USDA (SIP-010) |
 | **Stellar** (Soroban) | Rust | Freighter | USDC |
 
 ### AI
@@ -375,7 +375,7 @@ Integration flow:
 
 | Chain | Time Unit | Blocks/year | Formula |
 |---|---|---|---|
-| Stacks | Bitcoin burn blocks (~10 min) | 52,560 | `balance × apy_bps × elapsed / (10_000 × 52_560)` |
+| Stacks | ~10 min blocks | 52,560 | `balance × apy_bps × elapsed / (10_000 × 52_560)` |
 | Stellar | Ledger sequences (~5 sec) | 6,220,800 | `balance × apy_bps × elapsed / (10_000 × 6_220_800)` |
 
 Default APY: **600 bps = 6%**. Max: 2000 bps = 20%.

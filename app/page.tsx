@@ -3,41 +3,32 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { GoldButton } from "@/components/GoldButton";
-import { connectWallet, disconnectWallet, isWalletConnected, getConnectedAddress } from "@/lib/wallet";
-import { setUserAddress, useUserAddress } from "@/lib/hooks";
+import { isFreighterInstalled, connectFreighter, getFreighterAddress } from "@/lib/stellar";
 
 export default function LandingPage() {
-  const userAddress = useUserAddress();
+  const [address, setAddress] = useState<string | null>(null);
+  const [freighterInstalled, setFreighterInstalled] = useState<boolean | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
-
-  // Sync wallet session on mount
   useEffect(() => {
-    if (isWalletConnected()) {
-      setUserAddress(getConnectedAddress());
-    }
+    setMounted(true);
+    isFreighterInstalled().then(setFreighterInstalled);
+    getFreighterAddress().then((a) => { if (a) setAddress(a); });
   }, []);
 
-  function connect() {
-    connectWallet(() => {
-      setUserAddress(getConnectedAddress());
-    });
+  async function connect() {
+    const addr = await connectFreighter();
+    if (addr) setAddress(addr);
   }
 
-  function disconnect() {
-    disconnectWallet();
-    setUserAddress(null);
-  }
-
-  const isSignedIn = mounted && !!userAddress;
+  const isSignedIn = mounted && !!address;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
       {/* Hero */}
       <div className="max-w-2xl">
-        <div className="mb-4 inline-block rounded-full border border-yellow-500/30 bg-yellow-500/10 px-4 py-1 text-sm text-yellow-400">
-          Built on Stacks · Secured by Bitcoin
+        <div className="mb-4 inline-block rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1 text-sm text-blue-300">
+          Built on Stellar · Powered by Soroban
         </div>
 
         <h1 className="mb-4 text-5xl font-bold tracking-tight text-white md:text-6xl">
@@ -48,8 +39,8 @@ export default function LandingPage() {
         </h1>
 
         <p className="mb-8 text-lg text-zinc-400">
-          Forced savings for gig workers across Africa. Lock stablecoins, earn
-          yield, and access funds in a genuine emergency — reviewed by AI.
+          Forced savings for gig workers across Africa. Lock USDC on Stellar,
+          earn yield, and access funds in a genuine emergency — reviewed by AI.
         </p>
 
         {isSignedIn ? (
@@ -57,21 +48,23 @@ export default function LandingPage() {
             <p className="text-sm text-zinc-400">
               Connected:{" "}
               <span className="font-mono text-yellow-400">
-                {userAddress?.slice(0, 8)}…{userAddress?.slice(-6)}
+                {address?.slice(0, 8)}…{address?.slice(-6)}
               </span>
             </p>
-            <div className="flex gap-3">
-              <Link href="/dashboard">
-                <GoldButton>Go to Dashboard</GoldButton>
-              </Link>
-              <GoldButton variant="outline" onClick={disconnect}>
-                Disconnect
-              </GoldButton>
-            </div>
+            <Link href="/stellar-vault">
+              <GoldButton className="text-base px-8 py-4">Open Vault</GoldButton>
+            </Link>
+          </div>
+        ) : freighterInstalled === false ? (
+          <div className="flex flex-col items-center gap-3">
+            <a href="https://www.freighter.app/" target="_blank" rel="noopener noreferrer">
+              <GoldButton className="text-base px-8 py-4">Install Freighter →</GoldButton>
+            </a>
+            <p className="text-xs text-zinc-600">Freighter wallet required</p>
           </div>
         ) : (
           <GoldButton onClick={connect} className="text-base px-8 py-4">
-            Connect Wallet
+            Connect Freighter
           </GoldButton>
         )}
       </div>
@@ -100,35 +93,6 @@ export default function LandingPage() {
             <p className="text-sm text-zinc-400">{f.body}</p>
           </div>
         ))}
-      </div>
-
-      {/* Stellar vault link */}
-      <div className="mt-6 max-w-2xl rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-blue-300">Also available on Stellar</p>
-          <p className="text-xs text-zinc-500">Lock USDC on Stellar/Soroban · Freighter wallet</p>
-        </div>
-        <Link href="/stellar-vault">
-          <GoldButton className="text-sm py-1.5 px-3">Open →</GoldButton>
-        </Link>
-      </div>
-
-      {/* LI.FI Earn callout */}
-      <div className="mt-12 max-w-2xl rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-6 text-left">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
-            New · Powered by LI.FI
-          </span>
-        </div>
-        <h3 className="mb-2 text-lg font-bold text-white">
-          Find the Best Yield — Anywhere
-        </h3>
-        <p className="mb-4 text-sm text-zinc-400">
-          Browse 20+ DeFi protocols across 21 chains. Ask our AI agent in plain English and deposit in one click.
-        </p>
-        <Link href="/earn">
-          <GoldButton>Explore Yield Opportunities →</GoldButton>
-        </Link>
       </div>
     </main>
   );
